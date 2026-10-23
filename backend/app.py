@@ -27,6 +27,7 @@ try:
         PORT,
     )
     from .services.evidence import retrieve_evidence
+    from .services.inference_client import get_llm_client, get_nli_client
     from .services.orchestrator import (
         build_corrected_paragraph,
         suggest_correction_remote,
@@ -45,6 +46,7 @@ except ImportError:
         PORT,
     )
     from services.evidence import retrieve_evidence
+    from services.inference_client import get_llm_client, get_nli_client
     from services.orchestrator import (
         build_corrected_paragraph,
         suggest_correction_remote,
@@ -75,7 +77,14 @@ def _process_claim(idx: int, sentence: str) -> Dict[str, Any]:
         verification = verify_claim_remote(claim=sentence, evidence=evidence_text)
         status = verification.get("status", "Unverified")
         confidence = float(verification.get("confidence", 0.0))
-        explanation = verification.get("explanation", "")
+        explanation = verification.get("explanation")
+        if not explanation:
+            if status == "Supported":
+                explanation = "Retrieved evidence directly supports the claim."
+            elif status == "Contradicted":
+                explanation = "Retrieved evidence directly contradicts the claim."
+            else:
+                explanation = "Evidence is insufficient or inconclusive to confirm the claim."
 
         correction = ""
         correction_validated = False
@@ -105,6 +114,7 @@ def _process_claim(idx: int, sentence: str) -> Dict[str, Any]:
             "correction_validated": correction_validated,
             "inference_mode": verification.get("inference_mode", "fallback"),
             "is_real_model": verification.get("is_real_model", False),
+            "error": verification.get("error"),
         }
     except Exception as exc:
         logger.exception("Error processing sentence %d: %s", idx, exc)
@@ -119,6 +129,9 @@ def _process_claim(idx: int, sentence: str) -> Dict[str, Any]:
             "source_url": "",
             "correction": "",
             "correction_validated": False,
+            "inference_mode": "fallback",
+            "is_real_model": False,
+            "error": "internal_error",
         }
 
 # ======================== STATIC FRONTEND ROUTES ========================
@@ -139,26 +152,43 @@ def serve_frontend_js(filename):
     js_dir = os.path.join(FRONTEND_DIR, "js")
     return send_from_directory(js_dir, filename)
 
+@app.get("/static/<path:filename>")
+def serve_static_legacy(filename):
+    static_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "static"))
+    if os.path.exists(os.path.join(static_dir, filename)):
+        return send_from_directory(static_dir, filename)
+    return send_from_directory(FRONTEND_DIR, filename)
+
 # ======================== API ROUTES ========================
 
 @app.get("/api/health")
 def health():
-    nli_health = {"status": "unreachable"}
-    llm_health = {"status": "unreachable"}
+    nli_client = get_nli_client()
+    llm_client = get_llm_client()
 
-    try:
-        resp = requests.get(f"{NLI_SERVICE_URL.rstrip('/')}/health", timeout=2.0)
-        if resp.status_code == 200:
-            nli_health = resp.json()
-    except Exception:
-        pass
+    nli_raw = nli_client.check_health(timeout=2.0)
+    llm_raw = llm_client.check_health(timeout=2.0)
 
-    try:
-        resp = requests.get(f"{LLM_SERVICE_URL.rstrip('/')}/health", timeout=2.0)
-        if resp.status_code == 200:
-            llm_health = resp.json()
-    except Exception:
-        pass
+    # Sanitize upstream health responses to avoid leaking infrastructure details
+    nli_health = {
+        "available": bool(nli_raw.get("available", False)),
+        "status": nli_raw.get("status", "unavailable"),
+        "is_real_model_ready": bool(nli_raw.get("is_real_model_ready", False)),
+        "inference_mode": nli_raw.get("inference_mode", "remote_ec2"),
+        "model": nli_raw.get("model_name") or nli_raw.get("model", "cross-encoder/nli-MiniLM2-L6-H768"),
+    }
+    if not nli_health["available"]:
+        nli_health["error"] = nli_raw.get("error", "unavailable")
+
+    llm_health = {
+        "available": bool(llm_raw.get("available", False)),
+        "status": llm_raw.get("status", "unavailable"),
+        "is_real_model_ready": bool(llm_raw.get("is_real_model_ready", False)),
+        "inference_mode": llm_raw.get("inference_mode", "remote_ec2"),
+        "model": llm_raw.get("model_name") or llm_raw.get("model", "Qwen2.5-0.5B-Instruct"),
+    }
+    if not llm_health["available"]:
+        llm_health["error"] = llm_raw.get("error", "unavailable")
 
     return jsonify({
         "ok": True,
@@ -249,7 +279,7 @@ def analyze():
 @app.post("/api/chat")
 def chat():
     data = request.get_json(silent=True) or {}
-    message = (data.get("message") or "").strip()
+    message = (data.get("message") or data.get("text") or data.get("question") or "").strip()
 
     if not message:
         return jsonify({"reply": "Please ask a factual question or statement to verify."}), 400

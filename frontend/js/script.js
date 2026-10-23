@@ -5,8 +5,19 @@
    Decoupled Static Frontend Client
    ========================================================= */
 
-// Support configurable backend base URL for separated deployment
-const API_BASE_URL = window.API_BASE_URL || "";
+// Support configurable backend base URL for separated deployment (Render, custom domain, CDN)
+const API_BASE_URL = (function() {
+    if (typeof window !== "undefined" && window.API_BASE_URL) {
+        return String(window.API_BASE_URL).replace(/\/+$/, "");
+    }
+    if (typeof document !== "undefined") {
+        const meta = document.querySelector('meta[name="backend-api-url"]');
+        if (meta && meta.content) {
+            return meta.content.trim().replace(/\/+$/, "");
+        }
+    }
+    return "";
+})();
 
 const $ = (id) => document.getElementById(id);
 
@@ -248,7 +259,7 @@ function renderResult(item, index = 0) {
     const status = normalizeStatus(item.status);
     const claim = item.sentence || item.claim || item.text || "No claim text provided.";
     const rawConfidence = Number(item.confidence);
-    const confidenceText = Number.isFinite(rawConfidence)
+    const confidenceText = (Number.isFinite(rawConfidence) && rawConfidence > 0)
         ? `${Math.round(rawConfidence <= 1 ? rawConfidence * 100 : rawConfidence)}% confidence`
         : "";
 
@@ -257,6 +268,7 @@ function renderResult(item, index = 0) {
     const correction = item.correction || "";
     const source = item.source || "";
     const sourceUrl = safeUrl(item.source_url || item.url);
+    const hasServiceError = Boolean(item.error && item.error !== "insufficient_evidence" && item.error !== "empty_claim");
 
     let html = `
         <article class="result" data-result-index="${index}">
@@ -264,6 +276,7 @@ function renderResult(item, index = 0) {
                 <div class="badges">
                     <span class="badge ${status}">${status}</span>
                     ${confidenceText ? `<span class="confidence">${escapeHtml(confidenceText)}</span>` : ""}
+                    ${hasServiceError ? `<span class="badge" style="background: rgba(251, 191, 36, 0.2); color: var(--amber);">Service Notice</span>` : ""}
                 </div>
                 <span class="muted">Claim ${index + 1}</span>
             </div>
@@ -433,15 +446,20 @@ if (copyBtn) {
 
 /* ---------- CHAT ASSISTANT ---------- */
 
+let isChatting = false;
+
 if (chatForm) {
     chatForm.addEventListener("submit", async (event) => {
         event.preventDefault();
+        if (isChatting) return;
+
         const question = chatInput?.value.trim() || "";
         if (!question) {
             if (chatResult) chatResult.textContent = "Please enter a question.";
             return;
         }
 
+        isChatting = true;
         if (chatBtn) {
             chatBtn.disabled = true;
             chatBtn.textContent = "Checking...";
@@ -459,9 +477,9 @@ if (chatForm) {
 
             const status = normalizeStatus(data.status);
             const reply = data.reply || data.explanation || "No detailed response was returned.";
-            const confidence = Number(data.confidence);
-            const confidenceHtml = Number.isFinite(confidence)
-                ? `<span class="confidence">${Math.round(confidence <= 1 ? confidence * 100 : confidence)}% confidence</span>`
+            const rawConfidence = Number(data.confidence);
+            const confidenceHtml = (Number.isFinite(rawConfidence) && rawConfidence > 0)
+                ? `<span class="confidence">${Math.round(rawConfidence <= 1 ? rawConfidence * 100 : rawConfidence)}% confidence</span>`
                 : "";
             const sourceUrl = safeUrl(data.source_url);
 
@@ -485,6 +503,7 @@ if (chatForm) {
                 chatResult.textContent = `Could not get an answer: ${error.message}.`;
             }
         } finally {
+            isChatting = false;
             if (chatBtn) {
                 chatBtn.disabled = false;
                 chatBtn.textContent = "Ask Assistant";
@@ -559,15 +578,61 @@ if (clearHistoryBtn) {
 
 async function checkBackendHealth() {
     const statusElement = $("sidebar-status");
+    const sidebarDot = $("sidebar-status-dot") || document.querySelector(".sidebar-bottom .status-dot");
+    const systemStatusText = $("system-status-text");
+    const systemStatusDot = $("system-status-dot");
+
     try {
         const data = await apiRequest("/api/health");
-        if (statusElement) {
-            statusElement.textContent = data.ok ? "Connected (Lightweight Tier)" : "Check backend status";
+        const nliAvail = Boolean(data.nli_service && data.nli_service.available);
+        const llmAvail = Boolean(data.llm_service && data.llm_service.available);
+        const nliReal = Boolean(data.nli_service && data.nli_service.is_real_model_ready);
+        const llmReal = Boolean(data.llm_service && data.llm_service.is_real_model_ready);
+
+        let statusText = "Connected";
+        let badgeText = "Lightweight AI Tier";
+        let dotClass = "ready";
+
+        if (!data.ok) {
+            statusText = "Check backend status";
+            badgeText = "Backend Degraded";
+            dotClass = "warning";
+        } else if (nliAvail && llmAvail) {
+            if (nliReal && llmReal) {
+                statusText = "All Models Operational (EC2)";
+                badgeText = "EC2 Production Tier";
+                dotClass = "ready";
+            } else {
+                statusText = "Connected (Fallback Mode)";
+                badgeText = "Fallback Mode";
+                dotClass = "warning";
+            }
+        } else if (!nliAvail && !llmAvail) {
+            const isTls = (data.nli_service?.error === "tls_verification_failed" || data.llm_service?.error === "tls_verification_failed");
+            statusText = isTls ? "Inference TLS Cert Required" : "Inference Services Offline";
+            badgeText = isTls ? "TLS Cert Needed" : "Models Offline";
+            dotClass = "warning";
+        } else if (!nliAvail) {
+            statusText = "NLI Service Unavailable";
+            badgeText = "NLI Offline";
+            dotClass = "warning";
+        } else if (!llmAvail) {
+            statusText = "LLM Service Unavailable";
+            badgeText = "LLM Offline";
+            dotClass = "warning";
         }
+
+        if (statusElement) statusElement.textContent = statusText;
+        if (systemStatusText) systemStatusText.textContent = badgeText;
+        if (sidebarDot) sidebarDot.className = `status-dot ${dotClass}`;
+        if (systemStatusDot) systemStatusDot.className = `status-dot ${dotClass}`;
+
     } catch (error) {
-        if (statusElement) {
-            statusElement.textContent = "Backend unavailable";
-        }
+        if (statusElement) statusElement.textContent = "Backend unavailable";
+        if (systemStatusText) systemStatusText.textContent = "Backend Offline";
+        if (sidebarDot) sidebarDot.className = "status-dot error";
+        if (systemStatusDot) systemStatusDot.className = "status-dot error";
+        console.warn("Backend health check failed:", error);
     }
 }
 

@@ -1,19 +1,40 @@
 """Orchestration service coordinating remote NLI verification and LLM correction microservices."""
 import logging
 from typing import Any, Dict, List, Optional
-import requests
 
 try:
-    from ..config import NLI_SERVICE_URL, LLM_SERVICE_URL, NLI_TIMEOUT, LLM_TIMEOUT
+    from .inference_client import (
+        InferenceAuthError,
+        InferenceClientError,
+        InferenceConnectionError,
+        InferenceServerError,
+        InferenceTimeoutError,
+        InferenceTLSError,
+        get_llm_client,
+        get_nli_client,
+    )
     from .text_processor import extract_relevant_passage
 except (ImportError, ValueError):
-    from config import NLI_SERVICE_URL, LLM_SERVICE_URL, NLI_TIMEOUT, LLM_TIMEOUT
+    from services.inference_client import (
+        InferenceAuthError,
+        InferenceClientError,
+        InferenceConnectionError,
+        InferenceServerError,
+        InferenceTimeoutError,
+        InferenceTLSError,
+        get_llm_client,
+        get_nli_client,
+    )
     from services.text_processor import extract_relevant_passage
 
 logger = logging.getLogger("backend.orchestrator")
 
+
 def verify_claim_remote(claim: str, evidence: str) -> Dict[str, Any]:
-    """Call the independent NLI verification microservice with timeout and circuit defense."""
+    """
+    Call the EC2 NLI verification microservice with timeout, security, and circuit defense.
+    Distinguishes genuine verdicts from service errors and TLS failures.
+    """
     claim = (claim or "").strip()
     evidence = (evidence or "").strip()
 
@@ -22,7 +43,8 @@ def verify_claim_remote(claim: str, evidence: str) -> Dict[str, Any]:
             "status": "Unverified",
             "confidence": 0.0,
             "explanation": "No claim provided.",
-            "error": "empty_claim"
+            "error": "empty_claim",
+            "is_real_model": False,
         }
 
     if len(evidence) < 30:
@@ -30,58 +52,90 @@ def verify_claim_remote(claim: str, evidence: str) -> Dict[str, Any]:
             "status": "Unverified",
             "confidence": 0.0,
             "explanation": "Insufficient evidence available to determine factual validity.",
-            "error": "insufficient_evidence"
+            "error": "insufficient_evidence",
+            "is_real_model": False,
         }
 
     passage = extract_relevant_passage(evidence, claim)
+    if not passage:
+        passage = evidence[:1800]
 
     try:
-        url = f"{NLI_SERVICE_URL.rstrip('/')}/verify"
-        response = requests.post(
-            url,
-            json={"claim": claim, "evidence": passage},
-            timeout=NLI_TIMEOUT
-        )
-        if response.status_code == 200:
-            data = response.json()
-            status = data.get("status", "Unverified")
-            confidence = float(data.get("confidence", 0.0))
+        nli_client = get_nli_client()
+        result = nli_client.verify(claim=claim, evidence=passage)
 
-            if status == "Supported":
-                explanation = "Retrieved evidence directly supports the claim."
-            elif status == "Contradicted":
-                explanation = "Retrieved evidence directly contradicts the claim."
-            else:
-                explanation = "Evidence is insufficient or inconclusive to confirm the claim."
-
-            return {
-                "status": status,
-                "confidence": confidence,
-                "explanation": explanation,
-                "scores": data.get("scores", {}),
-                "model": data.get("model", "nli-service"),
-                "inference_mode": data.get("inference_mode", "unknown"),
-                "is_real_model": data.get("is_real_model", False),
-                "latency_ms": data.get("latency_ms", 0.0)
-            }
+        status = result.get("status", "Unverified")
+        if status == "Supported":
+            explanation = "Retrieved evidence directly supports the claim."
+        elif status == "Contradicted":
+            explanation = "Retrieved evidence directly contradicts the claim."
         else:
-            logger.warning("NLI service returned HTTP %d: %s", response.status_code, response.text)
-    except requests.exceptions.Timeout:
-        logger.warning("NLI verification request timed out after %.1fs", NLI_TIMEOUT)
-    except requests.exceptions.ConnectionError:
-        logger.warning("NLI service unreachable at %s", NLI_SERVICE_URL)
-    except Exception as exc:
-        logger.warning("NLI verification failed: %s", exc)
+            explanation = "Evidence is insufficient or inconclusive to confirm the claim."
 
-    return {
-        "status": "Unverified",
-        "confidence": 0.0,
-        "explanation": "Verification service unavailable; safe unverified fallback applied.",
-        "error": "service_unavailable"
-    }
+        result["explanation"] = explanation
+        return result
+
+    except InferenceTLSError as exc:
+        logger.warning("NLI verification failed due to TLS error: %s", exc)
+        return {
+            "status": "Unverified",
+            "confidence": 0.0,
+            "explanation": "Inference TLS certificate verification failed. A trusted CA bundle is required.",
+            "error": "tls_verification_failed",
+            "is_real_model": False,
+        }
+    except InferenceAuthError as exc:
+        logger.warning("NLI verification failed due to authentication error: %s", exc)
+        return {
+            "status": "Unverified",
+            "confidence": 0.0,
+            "explanation": "Inference service authentication failed. Verify INFERENCE_API_KEY.",
+            "error": "upstream_unauthorized",
+            "is_real_model": False,
+        }
+    except InferenceTimeoutError as exc:
+        logger.warning("NLI verification timed out: %s", exc)
+        return {
+            "status": "Unverified",
+            "confidence": 0.0,
+            "explanation": "Inference verification timed out; safe unverified fallback applied.",
+            "error": "upstream_timeout",
+            "is_real_model": False,
+        }
+    except InferenceConnectionError as exc:
+        logger.warning("NLI verification connection failure: %s", exc)
+        return {
+            "status": "Unverified",
+            "confidence": 0.0,
+            "explanation": "Inference service unreachable; safe unverified fallback applied.",
+            "error": "upstream_connection_error",
+            "is_real_model": False,
+        }
+    except InferenceServerError as exc:
+        logger.warning("NLI verification server error: %s", exc)
+        return {
+            "status": "Unverified",
+            "confidence": 0.0,
+            "explanation": "Inference service encountered a server error; safe unverified fallback applied.",
+            "error": "upstream_server_error",
+            "is_real_model": False,
+        }
+    except Exception as exc:
+        logger.warning("NLI verification unexpected error: %s", exc)
+        return {
+            "status": "Unverified",
+            "confidence": 0.0,
+            "explanation": "Verification service unavailable; safe unverified fallback applied.",
+            "error": "service_unavailable",
+            "is_real_model": False,
+        }
+
 
 def suggest_correction_remote(claim: str, evidence: str) -> str:
-    """Call the independent LLM correction microservice with timeout and validation constraints."""
+    """
+    Call the EC2 Qwen correction microservice with timeout and validation constraints.
+    Never fabricates a correction if the remote model fails or abstains.
+    """
     claim = (claim or "").strip()
     evidence = (evidence or "").strip()
 
@@ -89,25 +143,25 @@ def suggest_correction_remote(claim: str, evidence: str) -> str:
         return ""
 
     try:
-        url = f"{LLM_SERVICE_URL.rstrip('/')}/correct"
-        response = requests.post(
-            url,
-            json={"claim": claim, "evidence": evidence},
-            timeout=LLM_TIMEOUT
-        )
-        if response.status_code == 200:
-            data = response.json()
-            return str(data.get("correction") or "").strip()
-        else:
-            logger.warning("LLM service returned HTTP %d: %s", response.status_code, response.text)
-    except requests.exceptions.Timeout:
-        logger.warning("LLM correction request timed out after %.1fs", LLM_TIMEOUT)
-    except requests.exceptions.ConnectionError:
-        logger.warning("LLM service unreachable at %s", LLM_SERVICE_URL)
-    except Exception as exc:
-        logger.warning("LLM correction failed: %s", exc)
+        llm_client = get_llm_client()
+        result = llm_client.correct(claim=claim, evidence=evidence)
 
-    return ""
+        if result.get("abstain") is True:
+            return ""
+
+        correction = str(result.get("correction") or "").strip()
+        if correction.upper() in {"NONE", "N/A", "UNKNOWN"}:
+            return ""
+
+        return correction
+
+    except InferenceClientError as exc:
+        logger.warning("LLM correction service error: %s", exc)
+        return ""
+    except Exception as exc:
+        logger.warning("LLM correction unexpected error: %s", exc)
+        return ""
+
 
 def validate_correction_remote(claim: str, correction: str, evidence: str) -> bool:
     """
@@ -124,6 +178,7 @@ def validate_correction_remote(claim: str, correction: str, evidence: str) -> bo
     # Verify if evidence entails the correction
     nli_result = verify_claim_remote(claim=correction, evidence=evidence)
     return nli_result.get("status") == "Supported" and nli_result.get("confidence", 0.0) >= 0.60
+
 
 def build_corrected_paragraph(results: List[Dict[str, Any]]) -> str:
     """Construct a coherent paragraph preserving document flow and unverified claims."""

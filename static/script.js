@@ -688,19 +688,60 @@ if (clearHistoryBtn) {
 
 async function checkBackendHealth() {
     const statusElement = $("sidebar-status");
+    const sidebarDot = $("sidebar-status-dot") || document.querySelector(".sidebar-bottom .status-dot");
+    const systemStatusText = $("system-status-text");
+    const systemStatusDot = $("system-status-dot");
 
     try {
         const data = await apiRequest("/api/health");
+        const nliAvail = Boolean(data.nli_service && data.nli_service.available);
+        const llmAvail = Boolean(data.llm_service && data.llm_service.available);
+        const nliReal = Boolean(data.nli_service && data.nli_service.is_real_model_ready);
+        const llmReal = Boolean(data.llm_service && data.llm_service.is_real_model_ready);
 
-        if (statusElement) {
-            statusElement.textContent = data.ok
-                ? "Backend connected"
-                : "Check backend status";
+        let statusText = "Connected";
+        let badgeText = "Lightweight AI Tier";
+        let dotClass = "ready";
+
+        if (!data.ok) {
+            statusText = "Check backend status";
+            badgeText = "Backend Degraded";
+            dotClass = "warning";
+        } else if (nliAvail && llmAvail) {
+            if (nliReal && llmReal) {
+                statusText = "All Models Operational (EC2)";
+                badgeText = "EC2 Production Tier";
+                dotClass = "ready";
+            } else {
+                statusText = "Connected (Fallback Mode)";
+                badgeText = "Fallback Mode";
+                dotClass = "warning";
+            }
+        } else if (!nliAvail && !llmAvail) {
+            const isTls = (data.nli_service?.error === "tls_verification_failed" || data.llm_service?.error === "tls_verification_failed");
+            statusText = isTls ? "Inference TLS Cert Required" : "Inference Services Offline";
+            badgeText = isTls ? "TLS Cert Needed" : "Models Offline";
+            dotClass = "warning";
+        } else if (!nliAvail) {
+            statusText = "NLI Service Unavailable";
+            badgeText = "NLI Offline";
+            dotClass = "warning";
+        } else if (!llmAvail) {
+            statusText = "LLM Service Unavailable";
+            badgeText = "LLM Offline";
+            dotClass = "warning";
         }
+
+        if (statusElement) statusElement.textContent = statusText;
+        if (systemStatusText) systemStatusText.textContent = badgeText;
+        if (sidebarDot) sidebarDot.className = `status-dot ${dotClass}`;
+        if (systemStatusDot) systemStatusDot.className = `status-dot ${dotClass}`;
+
     } catch (error) {
-        if (statusElement) {
-            statusElement.textContent = "Backend unavailable";
-        }
+        if (statusElement) statusElement.textContent = "Backend unavailable";
+        if (systemStatusText) systemStatusText.textContent = "Backend Offline";
+        if (sidebarDot) sidebarDot.className = "status-dot error";
+        if (systemStatusDot) systemStatusDot.className = "status-dot error";
         console.warn("Backend health check failed:", error);
     }
 }

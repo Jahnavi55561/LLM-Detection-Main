@@ -138,4 +138,5 @@ python -m pytest tests/integration/test_benchmark_dataset.py -s -v
 - **Detailed Audit & Redesign Plan:** [`docs/LIGHTWEIGHT_REDESIGN_PLAN.md`](docs/LIGHTWEIGHT_REDESIGN_PLAN.md)
 - **Local Feasibility & Test Report:** [`docs/LOCAL_FEASIBILITY_REPORT.md`](docs/LOCAL_FEASIBILITY_REPORT.md)
 - **Phase 2 Model Validation & Cloud Gate Report:** [`docs/PHASE2_MODEL_VALIDATION.md`](docs/PHASE2_MODEL_VALIDATION.md)
+- **Render Deployment & EC2 Integration Guide:** [`docs/RENDER_DEPLOYMENT.md`](docs/RENDER_DEPLOYMENT.md)
 

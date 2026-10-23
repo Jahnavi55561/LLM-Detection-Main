@@ -173,6 +173,22 @@ a:hover {
     border-radius: 50%;
     background: var(--green);
     box-shadow: 0 0 10px rgba(52, 211, 153, 0.35);
+    transition: background 0.3s ease, box-shadow 0.3s ease;
+}
+
+.status-dot.ready {
+    background: var(--green);
+    box-shadow: 0 0 10px rgba(52, 211, 153, 0.45);
+}
+
+.status-dot.warning {
+    background: var(--amber);
+    box-shadow: 0 0 10px rgba(251, 191, 36, 0.45);
+}
+
+.status-dot.error {
+    background: var(--red);
+    box-shadow: 0 0 10px rgba(251, 113, 133, 0.45);
 }
 
 /* MAIN CONTENT */
