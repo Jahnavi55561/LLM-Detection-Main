@@ -1,0 +1,78 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+*.pyd
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Model weights, artifacts and large files
+*.bin
+*.safetensors
+*.gguf
+*.onnx
+*.pt
+*.pth
+*.ckpt
+models/
+model-weights/
+downloaded_models/
+
+# Distribution / packaging
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Testing & Coverage
+.cache
+.pytest_cache/
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+nosetests.xml
+coverage.xml
+
+# IDE and OS
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Logs and runtime databases
+*.log
+*.sqlite3
+*.db
+/run/
+
+# Environment, secrets, and credentials
+.env
+.env.*
+*.env
+*.pem
+*.key
+credentials.json
+aws_credentials
+

@@ -1,0 +1,170 @@
+[
+  {
+    "id": 1,
+    "claim": "The Earth revolves around the Sun.",
+    "ground_truth": "Supported",
+    "evidence": "Earth orbits the Sun once approximately every 365.25 days in an elliptical path.",
+    "expected_correction": ""
+  },
+  {
+    "id": 2,
+    "claim": "The capital of Australia is Canberra.",
+    "ground_truth": "Supported",
+    "evidence": "Canberra was selected as the capital city of Australia in 1908 as a compromise between Sydney and Melbourne.",
+    "expected_correction": ""
+  },
+  {
+    "id": 3,
+    "claim": "IPv4 addresses are 32 bits long.",
+    "ground_truth": "Supported",
+    "evidence": "An IPv4 address contains 32 bits, divided into four 8-bit octets.",
+    "expected_correction": ""
+  },
+  {
+    "id": 4,
+    "claim": "The human heart has four chambers.",
+    "ground_truth": "Supported",
+    "evidence": "The mammalian heart consists of four chambers: right atrium, right ventricle, left atrium, and left ventricle.",
+    "expected_correction": ""
+  },
+  {
+    "id": 5,
+    "claim": "The chemical formula of water is H2O.",
+    "ground_truth": "Supported",
+    "evidence": "Water is an inorganic compound with the chemical formula H2O.",
+    "expected_correction": ""
+  },
+  {
+    "id": 6,
+    "claim": "DNA usually has a double helix structure.",
+    "ground_truth": "Supported",
+    "evidence": "DNA consists of two polynucleotide chains that coil around each other to form a double helix.",
+    "expected_correction": ""
+  },
+  {
+    "id": 7,
+    "claim": "Telangana became a state in India in 2014.",
+    "ground_truth": "Supported",
+    "evidence": "Telangana officially became the 29th state of India on 2 June 2014.",
+    "expected_correction": ""
+  },
+  {
+    "id": 8,
+    "claim": "Python is a high-level programming language.",
+    "ground_truth": "Supported",
+    "evidence": "Python is a high-level, general-purpose programming language designed by Guido van Rossum.",
+    "expected_correction": ""
+  },
+  {
+    "id": 9,
+    "claim": "The Moon produces its own visible light.",
+    "ground_truth": "Contradicted",
+    "evidence": "The Moon does not produce its own visible light; it reflects light emitted by the Sun.",
+    "expected_correction": "The Moon reflects sunlight."
+  },
+  {
+    "id": 10,
+    "claim": "The Sun revolves around the Earth.",
+    "ground_truth": "Contradicted",
+    "evidence": "Earth and other planets in the Solar System orbit the Sun in a heliocentric system.",
+    "expected_correction": "The Earth revolves around the Sun."
+  },
+  {
+    "id": 11,
+    "claim": "The capital of Australia is Sydney.",
+    "ground_truth": "Contradicted",
+    "evidence": "Canberra is the capital city of Australia, while Sydney is the capital of New South Wales.",
+    "expected_correction": "The capital of Australia is Canberra."
+  },
+  {
+    "id": 12,
+    "claim": "IPv4 addresses are 128 bits long.",
+    "ground_truth": "Contradicted",
+    "evidence": "IPv4 addresses are 32 bits long. IPv6 addresses are 128 bits long.",
+    "expected_correction": "An IPv4 address contains 32 bits."
+  },
+  {
+    "id": 13,
+    "claim": "Humans normally have three lungs.",
+    "ground_truth": "Contradicted",
+    "evidence": "Humans normally have two lungs located in the thoracic cavity.",
+    "expected_correction": "Humans normally have two lungs."
+  },
+  {
+    "id": 14,
+    "claim": "The Earth is flat.",
+    "ground_truth": "Contradicted",
+    "evidence": "Earth is approximately an oblate spheroid with a slight bulge at the equator.",
+    "expected_correction": "The Earth is approximately spherical."
+  },
+  {
+    "id": 15,
+    "claim": "The chemical formula of water is CO2.",
+    "ground_truth": "Contradicted",
+    "evidence": "Water has the chemical formula H2O. CO2 is carbon dioxide.",
+    "expected_correction": "The chemical formula of water is H2O."
+  },
+  {
+    "id": 16,
+    "claim": "HTML is a programming language.",
+    "ground_truth": "Contradicted",
+    "evidence": "HTML is a standard markup language used to structure web documents, not a programming language.",
+    "expected_correction": "HTML is a markup language."
+  },
+  {
+    "id": 17,
+    "claim": "Saturn has no rings.",
+    "ground_truth": "Contradicted",
+    "evidence": "Saturn has an extensive and prominent planetary ring system consisting mostly of water ice.",
+    "expected_correction": "Saturn has a prominent ring system."
+  },
+  {
+    "id": 18,
+    "claim": "Humans normally have 48 chromosomes in each body cell.",
+    "ground_truth": "Contradicted",
+    "evidence": "Most human body cells contain 46 chromosomes organized into 23 pairs.",
+    "expected_correction": "Humans normally have 46 chromosomes."
+  },
+  {
+    "id": 19,
+    "claim": "Artificial intelligence will achieve self-awareness by the year 2045.",
+    "ground_truth": "Unverified",
+    "evidence": "Future forecasts regarding artificial general intelligence and machine consciousness vary widely among researchers without scientific consensus.",
+    "expected_correction": ""
+  },
+  {
+    "id": 20,
+    "claim": "My neighbor's car is blue.",
+    "ground_truth": "Unverified",
+    "evidence": "",
+    "expected_correction": ""
+  },
+  {
+    "id": 21,
+    "claim": "The mysterious planet Zorblax has purple oceans.",
+    "ground_truth": "Unverified",
+    "evidence": "",
+    "expected_correction": ""
+  },
+  {
+    "id": 22,
+    "claim": "Quantum computers will completely replace all classical computers by 2030.",
+    "ground_truth": "Unverified",
+    "evidence": "Quantum computing continues to develop for specialized applications, but classical computing remains essential for general-purpose workloads.",
+    "expected_correction": ""
+  },
+  {
+    "id": 23,
+    "claim": "Vanilla is the universally preferred ice cream flavor.",
+    "ground_truth": "Unverified",
+    "evidence": "Flavor popularity varies significantly across consumer demographics and geographic regions.",
+    "expected_correction": ""
+  },
+  {
+    "id": 24,
+    "claim": "There are exactly 4,219 undiscovered deep sea fish species.",
+    "ground_truth": "Unverified",
+    "evidence": "Marine biologists estimate that hundreds of thousands of oceanic species remain undescribed, with exact numbers unknown.",
+    "expected_correction": ""
+  }
+]

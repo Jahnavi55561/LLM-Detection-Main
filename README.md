@@ -90,3 +90,52 @@ LLM_Hallucination_Framework/
 - `GET /api/history` — Returns recent session analysis summaries.
 - `POST /api/history/clear` — Clears stored session analysis history.
 
+
+
+---
+
+## Phase 1: Lightweight Decoupled Microservice Architecture
+
+The project includes an optimized, decoupled microservice architecture designed for low-memory CPU execution (e.g. AWS EC2 `t4g.small` / `t4g.medium` in `ap-south-1`).
+
+### Architecture Overview
+- **`frontend/`**: Decoupled static HTML/CSS/JS with configurable API base URL.
+- **`backend/`**: Lightweight Flask gateway orchestrating evidence retrieval, verification, and correction.
+- **`model-services/nli-verification/`**: Standalone NLI service using `cross-encoder/nli-MiniLM2-L6-H768` (Port 5001).
+- **`model-services/llm-correction/`**: Standalone correction service using `Qwen2.5-0.5B-Instruct` (Port 5002).
+- **`tests/`**: Unit, integration, concurrency, and benchmark tests with pytest.
+
+### Running the Decoupled Services Locally
+
+1. **Start the NLI Verification Service (Port 5001):**
+   ```powershell
+   python "model-services/nli-verification/app.py"
+   ```
+
+2. **Start the LLM Correction Service (Port 5002):**
+   ```powershell
+   python "model-services/llm-correction/app.py"
+   ```
+
+3. **Start the Backend API Gateway & Static Frontend (Port 5000):**
+   ```powershell
+   python "backend/app.py"
+   ```
+
+Then open `http://127.0.0.1:5000` in your web browser.
+
+### Running the Automated Test Suite
+
+```powershell
+# Run the complete test suite
+python -m pytest tests/ -v
+
+# Run the benchmark accuracy evaluation
+python -m pytest tests/integration/test_benchmark_dataset.py -s -v
+```
+
+### Documentation & Reports
+- **Detailed Audit & Redesign Plan:** [`docs/LIGHTWEIGHT_REDESIGN_PLAN.md`](docs/LIGHTWEIGHT_REDESIGN_PLAN.md)
+- **Local Feasibility & Test Report:** [`docs/LOCAL_FEASIBILITY_REPORT.md`](docs/LOCAL_FEASIBILITY_REPORT.md)
+- **Phase 2 Model Validation & Cloud Gate Report:** [`docs/PHASE2_MODEL_VALIDATION.md`](docs/PHASE2_MODEL_VALIDATION.md)
+

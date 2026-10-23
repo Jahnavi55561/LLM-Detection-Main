@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM Hallucination Detection Framework</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+<div class="app-shell">
+
+    <aside class="sidebar">
+        <div class="brand">
+            <div class="brand-icon">✦</div>
+            <div>
+                <h2>Hallucination AI</h2>
+                <p>Verification Framework</p>
+            </div>
+        </div>
+
+        <nav class="navigation">
+            <a class="nav-link active" href="#dashboard">▦ Dashboard</a>
+            <a class="nav-link" href="#analyzer">⌕ Analyze Text</a>
+            <a class="nav-link" href="#analytics">▥ Analytics</a>
+            <a class="nav-link" href="#chatbot">✧ AI Assistant</a>
+            <a class="nav-link" href="#history-section">◷ History</a>
+            <a class="nav-link" href="#about">ⓘ About</a>
+        </nav>
+
+        <div class="sidebar-bottom">
+            <div class="status-dot"></div>
+            <div>
+                <strong>Verification System</strong>
+                <p id="sidebar-status">Checking system...</p>
+            </div>
+        </div>
+    </aside>
+
+    <main class="main-content">
+
+        <header class="topbar">
+            <div>
+                <p class="eyebrow">AI TRUST & VERIFICATION</p>
+                <h1 id="dashboard">LLM Hallucination Detector</h1>
+                <p class="subtitle">
+                    Analyze claims, verify evidence, and identify potentially incorrect AI-generated information.
+                </p>
+            </div>
+
+            <div class="system-badge">
+                <span class="status-dot"></span>
+                Lightweight AI Tier
+            </div>
+        </header>
+
+        <section class="stats-grid">
+            <article class="stat-card">
+                <div class="stat-top">
+                    <span>Total Sentences</span>
+                    <span class="stat-icon blue-icon">▤</span>
+                </div>
+                <h2 id="total-count">0</h2>
+                <p>Sentences analyzed</p>
+            </article>
+
+            <article class="stat-card">
+                <div class="stat-top">
+                    <span>Supported</span>
+                    <span class="stat-icon green-icon">✓</span>
+                </div>
+                <h2 id="supported-count">0</h2>
+                <p>Evidence supports claim</p>
+            </article>
+
+            <article class="stat-card">
+                <div class="stat-top">
+                    <span>Contradicted</span>
+                    <span class="stat-icon red-icon">!</span>
+                </div>
+                <h2 id="contradicted-count">0</h2>
+                <p>Conflicting evidence found</p>
+            </article>
+
+            <article class="stat-card">
+                <div class="stat-top">
+                    <span>Unverified</span>
+                    <span class="stat-icon amber-icon">?</span>
+                </div>
+                <h2 id="unverified-count">0</h2>
+                <p>Insufficient evidence</p>
+            </article>
+        </section>
+
+        <section class="panel analyzer-panel" id="analyzer">
+            <div class="panel-heading">
+                <div>
+                    <p class="eyebrow">CONTENT VERIFICATION</p>
+                    <h2>Analyze Your Text</h2>
+                    <p class="muted">
+                        Paste AI-generated content or individual factual claims.
+                    </p>
+                </div>
+                <span class="free-tag">Evidence-based</span>
+            </div>
+
+            <label for="input-text">Text to verify</label>
+
+            <textarea
+                id="input-text"
+                rows="8"
+                maxlength="10000"
+                placeholder="Example: The Earth revolves around the Sun. Sydney is the capital of Australia. Paste your text here..."
+            ></textarea>
+
+            <div class="input-footer">
+                <span id="char-count">0 / 10000 characters</span>
+                <span>Maximum 30 sentences per analysis</span>
+            </div>
+
+            <div class="controls">
+                <button id="analyze-btn" class="primary-btn" type="button">
+                    ✦ Analyze &amp; Verify
+                </button>
+
+                <button id="clear-input-btn" class="secondary-btn" type="button">
+                    Clear Text
+                </button>
+            </div>
+
+            <div id="message" role="status" aria-live="polite"></div>
+        </section>
+
+        <section id="results" class="results-section" hidden>
+            <div class="section-heading">
+                <div>
+                    <p class="eyebrow">ANALYSIS OUTPUT</p>
+                    <h2>Verification Results</h2>
+                    <p class="muted">
+                        Review each claim, its status, and the available evidence.
+                    </p>
+                </div>
+            </div>
+
+            <div id="result-list" class="result-list"></div>
+
+            <article class="panel correction-panel">
+                <div class="panel-heading">
+                    <div>
+                        <p class="eyebrow">SUGGESTED REVISION</p>
+                        <h2>Corrected Paragraph</h2>
+                    </div>
+                    <button id="copy-btn" class="secondary-btn" type="button">
+                        Copy Text
+                    </button>
+                </div>
+
+                <p id="corrected-paragraph" class="corrected-paragraph">
+                    Your corrected paragraph will appear here after analysis.
+                </p>
+            </article>
+        </section>
+
+        <section class="analytics-grid" id="analytics">
+            <article class="panel chart-panel">
+                <div class="panel-heading">
+                    <div>
+                        <p class="eyebrow">STATUS DISTRIBUTION</p>
+                        <h2>Verification Overview</h2>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="status-chart"></canvas>
+                </div>
+                <p class="chart-note">
+                    Distribution of Supported, Contradicted, and Unverified claims.
+                </p>
+            </article>
+
+            <article class="panel chart-panel">
+                <div class="panel-heading">
+                    <div>
+                        <p class="eyebrow">CLAIM COUNTS</p>
+                        <h2>Results Comparison</h2>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="comparison-chart"></canvas>
+                </div>
+                <p class="chart-note">
+                    Claim counts update when analysis results are received.
+                </p>
+            </article>
+        </section>
+
+        <section class="panel chatbot-panel" id="chatbot">
+            <div class="panel-heading">
+                <div>
+                    <p class="eyebrow">ASK A QUESTION</p>
+                    <h2>AI Verification Assistant</h2>
+                    <p class="muted">
+                        Ask a factual question and review the available evidence.
+                    </p>
+                </div>
+                <span class="assistant-icon">✧</span>
+            </div>
+
+            <form id="chat-form" class="chat-form">
+                <input
+                    id="chat-input"
+                    type="text"
+                    maxlength="2000"
+                    placeholder="Ask a factual question..."
+                    autocomplete="off"
+                    required
+                >
+                <button id="chat-btn" class="primary-btn" type="submit">
+                    Ask Assistant
+                </button>
+            </form>
+
+            <div id="chat-result" class="chat-result" aria-live="polite"></div>
+        </section>
+
+        <section class="panel history-panel" id="history-section">
+            <div class="panel-heading">
+                <div>
+                    <p class="eyebrow">RECENT ACTIVITY</p>
+                    <h2>Analysis History</h2>
+                    <p class="muted">Your recent analyses in this running session.</p>
+                </div>
+                <button id="clear-history-btn" class="secondary-btn" type="button">
+                    Clear History
+                </button>
+            </div>
+
+            <div id="history-list" class="history-list">
+                <p class="muted">Loading history...</p>
+            </div>
+        </section>
+
+        <section class="panel about-panel" id="about">
+            <p class="eyebrow">ABOUT THE ARCHITECTURE</p>
+            <h2>How the Lightweight Pipeline Works</h2>
+            <div class="about-grid">
+                <div>
+                    <span class="step-number">01</span>
+                    <h3>Sentence Extraction</h3>
+                    <p>Input is split into distinct claims preserving numbers and acronyms.</p>
+                </div>
+                <div>
+                    <span class="step-number">02</span>
+                    <h3>Evidence Retrieval</h3>
+                    <p>Searches local knowledge base and Wikipedia with bounded concurrency.</p>
+                </div>
+                <div>
+                    <span class="step-number">03</span>
+                    <h3>MiniLM2 NLI Verification</h3>
+                    <p>Microservice classifies claims using quantized cross-encoder NLI.</p>
+                </div>
+                <div>
+                    <span class="step-number">04</span>
+                    <h3>Qwen2.5 Correction</h3>
+                    <p>Lightweight 0.5B model suggests factual revisions grounded in evidence.</p>
+                </div>
+            </div>
+        </section>
+
+        <footer>
+            <p>LLM Hallucination Detection &amp; Correction Framework — Lightweight Decoupled Architecture</p>
+            <p>Results depend on evidence availability and verification threshold calibration.</p>
+        </footer>
+
+    </main>
+</div>
+
+<script src="js/script.js"></script>
+</body>
+</html>
