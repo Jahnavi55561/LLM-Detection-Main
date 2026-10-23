@@ -311,6 +311,7 @@ function renderResult(item, index = 0) {
                     ${confidenceText
                         ? `<span class="confidence">${escapeHtml(confidenceText)}</span>`
                         : ""}
+                    ${item.demo ? `<span class="badge" style="background: rgba(99, 102, 241, 0.2); color: #a5b4fc; border: 1px solid rgba(99, 102, 241, 0.4);">Predefined Demo</span>` : ""}
                 </div>
                 <span class="muted">Claim ${index + 1}</span>
             </div>
@@ -524,6 +525,159 @@ if (copyBtn) {
             );
         }
     });
+}
+
+/* ---------- DEMO MODE CONTROLLER ---------- */
+
+function initDemoControls() {
+    const select = $("demo-claim-select");
+    const runBtn = $("run-demo-btn");
+    const loadClaimBtn = $("load-demo-claim-btn");
+
+    if (select && typeof DEMO_DATASET !== "undefined") {
+        select.innerHTML = '<option value="">-- Choose a predefined claim to demo (30 available) --</option>';
+
+        const supportedGroup = document.createElement("optgroup");
+        supportedGroup.label = "15 Supported Factual Claims";
+
+        const contradictedGroup = document.createElement("optgroup");
+        contradictedGroup.label = "15 Contradicted Factual Claims";
+
+        DEMO_DATASET.forEach((item) => {
+            const opt = document.createElement("option");
+            opt.value = String(item.id);
+            opt.textContent = `${item.id}. [${item.status}] ${item.claim}`;
+            if (item.status === "Supported") {
+                supportedGroup.appendChild(opt);
+            } else {
+                contradictedGroup.appendChild(opt);
+            }
+        });
+
+        select.appendChild(supportedGroup);
+        select.appendChild(contradictedGroup);
+
+        select.addEventListener("change", () => {
+            const selectedId = select.value;
+            if (!selectedId) return;
+            const item = getDemoClaimById(selectedId);
+            if (item && inputText) {
+                inputText.value = item.claim;
+                updateCharacterCount();
+            }
+        });
+    }
+
+    if (loadClaimBtn) {
+        loadClaimBtn.addEventListener("click", () => {
+            const select = $("demo-claim-select");
+            const selectedId = select?.value;
+            if (!selectedId) {
+                setMessage("Please select a claim from the demo dropdown first.", "error");
+                return;
+            }
+            runSingleDemoClaim(Number(selectedId));
+        });
+    }
+
+    if (runBtn) {
+        runBtn.addEventListener("click", () => {
+            runFullDemoDataset();
+        });
+    }
+}
+
+function runSingleDemoClaim(claimId) {
+    if (typeof DEMO_DATASET === "undefined") {
+        setMessage("Demo dataset module is loading or unavailable.", "error");
+        return;
+    }
+    const item = getDemoClaimById(claimId);
+    if (!item) {
+        setMessage("Selected demo claim could not be found.", "error");
+        return;
+    }
+
+    if (inputText) {
+        inputText.value = item.claim;
+        updateCharacterCount();
+    }
+
+    clearMessage();
+
+    const demoResultItem = {
+        id: 1,
+        sentence: item.claim,
+        claim: item.claim,
+        status: item.status,
+        confidence: null,
+        explanation: `Predefined demonstration result (expected classification: ${item.status}). Live AI inference was not performed.`,
+        evidence: "Predefined demo result — live evidence retrieval was not performed.",
+        source: "Client Predefined Demo Dataset",
+        source_url: "",
+        correction: item.status === "Contradicted" ? "(Predefined contradiction - correction omitted in demo)" : "",
+        demo: true
+    };
+
+    if (resultList) {
+        resultList.innerHTML = renderResult(demoResultItem, 0);
+    }
+
+    const counts = {
+        Supported: item.status === "Supported" ? 1 : 0,
+        Contradicted: item.status === "Contradicted" ? 1 : 0,
+        Unverified: 0
+    };
+
+    updateStatistics(counts, 1);
+
+    if (correctedParagraph) {
+        correctedParagraph.textContent = item.status === "Contradicted"
+            ? "Predefined demo claim is contradicted. (Live correction model bypassed in demo mode)."
+            : "Claim is verified as Supported by predefined evaluation dataset.";
+    }
+
+    if (resultsSection) resultsSection.hidden = false;
+    setMessage(`Deterministic demo mode: Displaying predefined outcome for Claim #${item.id} (${item.status}). Live inference was bypassed.`, "success");
+    resultsSection?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function runFullDemoDataset() {
+    if (typeof DEMO_DATASET === "undefined") {
+        setMessage("Demo dataset module is loading or unavailable.", "error");
+        return;
+    }
+    const stats = getDemoCounts();
+
+    clearMessage();
+
+    const demoResults = DEMO_DATASET.map((item, idx) => ({
+        id: idx + 1,
+        sentence: item.claim,
+        claim: item.claim,
+        status: item.status,
+        confidence: null,
+        explanation: `Predefined demonstration result (expected classification: ${item.status}). Live AI inference was not performed.`,
+        evidence: "Predefined demo result — live evidence retrieval was not performed.",
+        source: "Client Predefined Demo Dataset",
+        source_url: "",
+        correction: "",
+        demo: true
+    }));
+
+    if (resultList) {
+        resultList.innerHTML = demoResults.map(renderResult).join("");
+    }
+
+    updateStatistics(stats.counts, stats.total);
+
+    if (correctedParagraph) {
+        correctedParagraph.textContent = "Demonstration dataset contains 15 Supported claims and 15 Contradicted claims. Live correction generation was bypassed.";
+    }
+
+    if (resultsSection) resultsSection.hidden = false;
+    setMessage(`Deterministic demo mode: Verified all ${stats.total} predefined dataset claims (${stats.supported} Supported, ${stats.contradicted} Contradicted). Live AI inference was bypassed.`, "success");
+    resultsSection?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 /* ---------- CHAT ASSISTANT ---------- */
@@ -782,3 +936,4 @@ updateStatistics({
 
 loadHistory();
 checkBackendHealth();
+initDemoControls();

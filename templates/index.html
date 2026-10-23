@@ -136,6 +136,27 @@
                 <option value="Sports">Sports</option>
             </select>
 
+            <div class="demo-bar" style="margin-bottom: 1.25rem; padding: 0.85rem 1rem; background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: 8px;">
+                <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.6rem;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #818cf8;"></span>
+                        <strong style="color: #c7d2fe; font-size: 0.88rem; letter-spacing: 0.05em; text-transform: uppercase;">Predefined Demo Dataset</strong>
+                        <span class="muted" style="font-size: 0.8rem;">(30 Client Test Cases: 15 Supported, 15 Contradicted)</span>
+                    </div>
+                    <button id="run-demo-btn" class="secondary-btn" type="button" style="padding: 0.35rem 0.85rem; font-size: 0.82rem; border-color: rgba(99, 102, 241, 0.5); color: #c7d2fe;">
+                        ▶ Run All 30 Demo Tests
+                    </button>
+                </div>
+                <div style="display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap;">
+                    <select id="demo-claim-select" aria-label="Select a predefined demo claim" style="flex: 1; min-width: 240px; padding: 0.45rem 0.65rem; border-radius: 6px; background: #0f172a; border: 1px solid rgba(148, 163, 184, 0.2); color: #e2e8f0; font-size: 0.85rem;">
+                        <option value="">-- Choose a predefined claim to demo (30 available) --</option>
+                    </select>
+                    <button id="load-demo-claim-btn" class="secondary-btn" type="button" style="padding: 0.45rem 0.85rem; font-size: 0.85rem;">
+                        Verify Selected
+                    </button>
+                </div>
+            </div>
+
             <label for="input-text">Text to verify</label>
 
             <textarea
@@ -306,6 +327,7 @@
     </main>
 </div>
 
+<script src="{{ url_for('static', filename='demo-dataset.js') }}"></script>
 <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
 </html>

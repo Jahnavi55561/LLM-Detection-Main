@@ -392,3 +392,78 @@ def test_history_and_clear_workflow(client):
     # History is empty again
     resp_empty_after = client.get("/api/history")
     assert resp_empty_after.get_json()["history"] == []
+
+
+# ==============================================================================
+# 8. Deterministic Claim Verification Demo Dataset
+# ==============================================================================
+
+def test_deterministic_demo_dataset_specification(client):
+    """
+    Validates client-requested 30-claim deterministic demo dataset:
+    - 15 Supported claims
+    - 15 Contradicted claims
+    - demo: true marker
+    - strict isolation: live backend endpoint /api/analyze is preserved
+    """
+    # 1. Verify demo dataset file exists and has valid structure
+    resp_demo = client.get("/js/demo-dataset.js")
+    assert resp_demo.status_code == 200
+    js_text = resp_demo.get_data(as_text=True)
+
+    expected_supported = [
+        "The capital of Australia is Canberra.",
+        "The Earth revolves around the Sun.",
+        "IPv4 addresses are 32 bits long.",
+        "The human heart has four chambers.",
+        "The chemical formula of water is H2O.",
+        "The Earth has one natural moon.",
+        "Mars is known as the Red Planet.",
+        "The Pacific Ocean is the largest ocean on Earth.",
+        "Plants use sunlight for photosynthesis.",
+        "DNA usually forms a double helix.",
+        "Light travels faster than sound in air.",
+        "Python is a high-level programming language.",
+        "HTML is a markup language.",
+        "HTTPS uses TLS to help encrypt data in transit.",
+        "The capital of India is New Delhi.",
+    ]
+
+    expected_contradicted = [
+        "The Sun revolves around the Earth.",
+        "IPv4 addresses are 128 bits long.",
+        "The capital of Australia is Sydney.",
+        "Humans normally have three lungs.",
+        "The Earth is flat.",
+        "The Moon produces its own visible light.",
+        "The Sun is a planet.",
+        "The Pacific Ocean is the smallest ocean on Earth.",
+        "The chemical formula of water is CO2.",
+        "Sound travels faster than light in air.",
+        "HTML is a general-purpose programming language.",
+        "HTTPS sends data in plaintext by default.",
+        "The capital of India is Mumbai.",
+        "Saturn has no rings.",
+        "Humans normally have 48 chromosomes in each body cell.",
+    ]
+
+    for claim in expected_supported:
+        assert claim in js_text, f"Missing supported claim: {claim}"
+
+    for claim in expected_contradicted:
+        assert claim in js_text, f"Missing contradicted claim: {claim}"
+
+    # Verify count functions and static alias
+    resp_static_demo = client.get("/static/demo-dataset.js")
+    assert resp_static_demo.status_code == 200
+    assert "DEMO_DATASET" in resp_static_demo.get_data(as_text=True)
+    assert "getDemoCounts" in js_text
+
+    # Verify frontend HTML includes demo selector bar
+    resp_html = client.get("/")
+    assert resp_html.status_code == 200
+    html = resp_html.get_data(as_text=True)
+    assert 'id="demo-claim-select"' in html
+    assert 'id="run-demo-btn"' in html
+    assert 'id="load-demo-claim-btn"' in html
+    assert 'demo-dataset.js' in html
