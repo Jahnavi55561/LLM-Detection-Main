@@ -18,6 +18,7 @@ if CURRENT_DIR not in sys.path:
 
 try:
     from .config import (
+        CORS_ORIGINS,
         FRONTEND_DIR,
         HOST,
         LLM_SERVICE_URL,
@@ -37,6 +38,7 @@ try:
     from .services.text_processor import split_sentences
 except ImportError:
     from config import (
+        CORS_ORIGINS,
         FRONTEND_DIR,
         HOST,
         LLM_SERVICE_URL,
@@ -59,7 +61,11 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] back
 logger = logging.getLogger("backend")
 
 app = Flask(__name__, static_folder=None)
-CORS(app)
+if CORS_ORIGINS == "*":
+    CORS(app)
+else:
+    allowed_origins = [o.strip() for o in CORS_ORIGINS.split(",") if o.strip()]
+    CORS(app, origins=allowed_origins)
 
 RECENT_HISTORY = deque(maxlen=20)
 

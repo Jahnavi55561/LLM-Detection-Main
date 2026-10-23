@@ -208,3 +208,23 @@ To test the integration locally before deploying to Render:
         -H "Content-Type: application/json" \
         -d '{"text": "The Earth revolves around the Sun. The capital of Australia is Sydney."}'
    ```
+
+---
+
+## 7. Render Static Site Deployment (Frontend)
+
+To deploy the static web frontend on Render:
+
+1. In the [Render Dashboard](https://dashboard.render.com), click **New + > Static Site**.
+2. Connect the GitHub repository: `https://github.com/Jahnavi55561/LLM-Detection-Main`.
+3. Configure the Static Site settings:
+   - **Name:** `llm-detection-frontend` (or your preferred name)
+   - **Branch:** `main`
+   - **Build Command:** *(Leave blank — no build step required)*
+   - **Publish Directory:** `frontend`
+4. Click **Create Static Site**.
+5. The static frontend will be deployed on a high-availability CDN. It automatically connects to the backend at `https://llm-detection-api.onrender.com` via `<meta name="backend-api-url" content="https://llm-detection-api.onrender.com">`.
+6. **CORS Allowlist (Optional):** The backend Web Service allows all origins (`*`) by default. To restrict access solely to your static frontend origin, add an environment variable to the backend Web Service:
+   ```text
+   CORS_ORIGINS=https://llm-detection-frontend.onrender.com
+   ```

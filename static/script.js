@@ -5,6 +5,20 @@
    Complete frontend controller
    ========================================== */
 
+// Support configurable backend base URL for separated deployment (Render, custom domain, CDN)
+const API_BASE_URL = (function() {
+    if (typeof window !== "undefined" && window.API_BASE_URL) {
+        return String(window.API_BASE_URL).replace(/\/+$/, "");
+    }
+    if (typeof document !== "undefined") {
+        const meta = document.querySelector('meta[name="backend-api-url"]');
+        if (meta && meta.content) {
+            return meta.content.trim().replace(/\/+$/, "");
+        }
+    }
+    return "";
+})();
+
 const $ = (id) => document.getElementById(id);
 
 const inputText = $("input-text");
@@ -111,7 +125,8 @@ function clearMessage() {
     messageBox.className = "";
 }
 
-async function apiRequest(url, options = {}) {
+async function apiRequest(path, options = {}) {
+    const url = `${API_BASE_URL}${path}`;
     const response = await fetch(url, {
         ...options,
         headers: {

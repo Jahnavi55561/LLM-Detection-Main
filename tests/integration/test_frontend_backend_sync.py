@@ -45,6 +45,8 @@ def test_static_frontend_and_assets_serving(client):
     assert 'id="sidebar-status"' in html
     assert 'id="result-list"' in html
     assert 'id="system-status-text"' in html
+    assert '<meta name="backend-api-url"' in html
+    assert 'content="https://llm-detection-api.onrender.com"' in html
 
     # CSS serving
     resp_css = client.get("/css/style.css")
@@ -66,6 +68,12 @@ def test_static_frontend_and_assets_serving(client):
     # Legacy static alias serving
     resp_static_css = client.get("/static/style.css")
     assert resp_static_css.status_code == 200
+
+    resp_static_js = client.get("/static/script.js")
+    assert resp_static_js.status_code == 200
+    static_js = resp_static_js.get_data(as_text=True)
+    assert "API_BASE_URL" in static_js
+    assert "backend-api-url" in static_js
 
 
 # ==============================================================================

@@ -9,6 +9,9 @@ logger = logging.getLogger("backend.config")
 HOST = os.getenv("BACKEND_HOST", os.getenv("HOST", "0.0.0.0" if os.getenv("RENDER") else "127.0.0.1"))
 PORT = int(os.getenv("PORT", os.getenv("BACKEND_PORT", "5000")))
 
+# CORS configuration: comma-separated origins or "*" (default)
+CORS_ORIGINS = os.getenv("CORS_ORIGINS", "*")
+
 # Default EC2 Gateway Base URL (HTTPS behind Nginx reverse proxy)
 DEFAULT_GATEWAY_URL = "https://13.205.17.228"
 
