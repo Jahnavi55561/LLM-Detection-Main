@@ -1,6 +1,7 @@
 """Integration tests verifying frontend and backend schema synchronization and failure-state handling."""
 import json
 import os
+import subprocess
 import sys
 from unittest.mock import MagicMock, patch
 
@@ -395,75 +396,194 @@ def test_history_and_clear_workflow(client):
 
 
 # ==============================================================================
-# 8. Deterministic Claim Verification Demo Dataset
+# 8. Predefined Claim Classification Integration (Analyze Workflow Patch)
 # ==============================================================================
 
-def test_deterministic_demo_dataset_specification(client):
+def run_node_eval(script_body):
+    """Executes a JavaScript evaluation snippet using Node.js in the repo root."""
+    js_preamble = """
+    const demo = require('./frontend/js/demo-dataset.js');
     """
-    Validates client-requested 30-claim deterministic demo dataset:
-    - 15 Supported claims
-    - 15 Contradicted claims
-    - demo: true marker
-    - strict isolation: live backend endpoint /api/analyze is preserved
-    """
-    # 1. Verify demo dataset file exists and has valid structure
-    resp_demo = client.get("/js/demo-dataset.js")
-    assert resp_demo.status_code == 200
-    js_text = resp_demo.get_data(as_text=True)
+    full_code = js_preamble + script_body
+    res = subprocess.run(
+        ["node", "-e", full_code],
+        cwd=ROOT_DIR,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return json.loads(res.stdout) if res.stdout.strip() else None
 
-    expected_supported = [
+
+def test_req1_single_known_supported_claim():
+    """1. Submit a single known supported claim -> Supported."""
+    result = run_node_eval("""
+    const res = demo.matchPredefinedClaim("The capital of Australia is Canberra.");
+    console.log(JSON.stringify(res));
+    """)
+    assert result is not None
+    assert result["status"] == "Supported"
+
+
+def test_req2_single_known_contradicted_claim():
+    """2. Submit a single known contradicted claim -> Contradicted."""
+    result = run_node_eval("""
+    const res = demo.matchPredefinedClaim("The capital of Australia is Sydney.");
+    console.log(JSON.stringify(res));
+    """)
+    assert result is not None
+    assert result["status"] == "Contradicted"
+
+
+def test_req3_all_15_supported_claims():
+    """3. Submit all 15 supported claims together -> 15 Supported, 0 Contradicted, 0 Unverified."""
+    result = run_node_eval("""
+    const supported = demo.DEMO_DATASET.filter(d => d.status === 'Supported').map(d => d.claim);
+    const matches = demo.matchAllPredefinedClaims(supported);
+    const counts = { Supported: 0, Contradicted: 0, Unverified: 0 };
+    if (matches) {
+        matches.forEach(m => counts[m.entry.status]++);
+    }
+    console.log(JSON.stringify({ total: matches ? matches.length : 0, counts }));
+    """)
+    assert result["total"] == 15
+    assert result["counts"]["Supported"] == 15
+    assert result["counts"]["Contradicted"] == 0
+    assert result["counts"]["Unverified"] == 0
+
+
+def test_req4_all_15_contradicted_claims():
+    """4. Submit all 15 contradicted claims together -> 0 Supported, 15 Contradicted, 0 Unverified."""
+    result = run_node_eval("""
+    const contradicted = demo.DEMO_DATASET.filter(d => d.status === 'Contradicted').map(d => d.claim);
+    const matches = demo.matchAllPredefinedClaims(contradicted);
+    const counts = { Supported: 0, Contradicted: 0, Unverified: 0 };
+    if (matches) {
+        matches.forEach(m => counts[m.entry.status]++);
+    }
+    console.log(JSON.stringify({ total: matches ? matches.length : 0, counts }));
+    """)
+    assert result["total"] == 15
+    assert result["counts"]["Supported"] == 0
+    assert result["counts"]["Contradicted"] == 15
+    assert result["counts"]["Unverified"] == 0
+
+
+def test_req5_all_30_claims_together():
+    """5. Submit all 30 claims together -> 15 Supported, 15 Contradicted, 0 Unverified."""
+    result = run_node_eval("""
+    const allClaims = demo.DEMO_DATASET.map(d => d.claim);
+    const matches = demo.matchAllPredefinedClaims(allClaims);
+    const counts = { Supported: 0, Contradicted: 0, Unverified: 0 };
+    if (matches) {
+        matches.forEach(m => counts[m.entry.status]++);
+    }
+    console.log(JSON.stringify({ total: matches ? matches.length : 0, counts }));
+    """)
+    assert result["total"] == 30
+    assert result["counts"]["Supported"] == 15
+    assert result["counts"]["Contradicted"] == 15
+    assert result["counts"]["Unverified"] == 0
+
+
+def test_req6_whitespace_and_punctuation_normalization():
+    """6. Verify claim with minor whitespace or punctuation differences still matches."""
+    result = run_node_eval("""
+    const variations = [
+        "   The capital of Australia is Canberra!   ",
+        "the earth revolves around the sun",
+        "  1. IPv4 addresses are 32 bits long.  ",
+        "The chemical formula of water is H2O...",
+        "The Sun revolves around the Earth?!?"
+    ];
+    const results = variations.map(v => {
+        const m = demo.matchPredefinedClaim(v);
+        return m ? m.status : null;
+    });
+    console.log(JSON.stringify(results));
+    """)
+    assert result == [
+        "Supported",
+        "Supported",
+        "Supported",
+        "Supported",
+        "Contradicted",
+    ]
+
+
+def test_req7_unknown_claim_triggers_backend_fallback(client):
+    """7. Submit an unknown claim -> falls back to backend /api/analyze."""
+    result = run_node_eval("""
+    const unknown = ["This is an unknown assertion that is not in the dataset."];
+    const matches = demo.matchAllPredefinedClaims(unknown);
+    console.log(JSON.stringify({ matches }));
+    """)
+    assert result["matches"] is None
+
+    resp = client.post("/api/analyze", json={"text": "Artificial intelligence is expanding rapidly."})
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert "results" in data
+
+
+def test_req8_mixed_claims_trigger_backend_fallback(client):
+    """8. Submit a mix of known and unknown claims -> falls back to backend /api/analyze."""
+    result = run_node_eval("""
+    const mixed = [
         "The capital of Australia is Canberra.",
-        "The Earth revolves around the Sun.",
-        "IPv4 addresses are 32 bits long.",
-        "The human heart has four chambers.",
-        "The chemical formula of water is H2O.",
-        "The Earth has one natural moon.",
-        "Mars is known as the Red Planet.",
-        "The Pacific Ocean is the largest ocean on Earth.",
-        "Plants use sunlight for photosynthesis.",
-        "DNA usually forms a double helix.",
-        "Light travels faster than sound in air.",
-        "Python is a high-level programming language.",
-        "HTML is a markup language.",
-        "HTTPS uses TLS to help encrypt data in transit.",
-        "The capital of India is New Delhi.",
-    ]
+        "Some completely unknown scientific paper claim."
+    ];
+    const matches = demo.matchAllPredefinedClaims(mixed);
+    console.log(JSON.stringify({ matches }));
+    """)
+    assert result["matches"] is None
 
-    expected_contradicted = [
-        "The Sun revolves around the Earth.",
-        "IPv4 addresses are 128 bits long.",
-        "The capital of Australia is Sydney.",
-        "Humans normally have three lungs.",
-        "The Earth is flat.",
-        "The Moon produces its own visible light.",
-        "The Sun is a planet.",
-        "The Pacific Ocean is the smallest ocean on Earth.",
-        "The chemical formula of water is CO2.",
-        "Sound travels faster than light in air.",
-        "HTML is a general-purpose programming language.",
-        "HTTPS sends data in plaintext by default.",
-        "The capital of India is Mumbai.",
-        "Saturn has no rings.",
-        "Humans normally have 48 chromosomes in each body cell.",
-    ]
+    resp = client.post("/api/analyze", json={
+        "text": "The capital of Australia is Canberra. Some completely unknown scientific paper claim."
+    })
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert len(data["results"]) == 2
 
-    for claim in expected_supported:
-        assert claim in js_text, f"Missing supported claim: {claim}"
 
-    for claim in expected_contradicted:
-        assert claim in js_text, f"Missing contradicted claim: {claim}"
+def test_req9_no_separate_demo_ui_controls_in_html(client):
+    """9. Verify the demo selector and separate demo buttons no longer exist in the HTML."""
+    resp = client.get("/")
+    assert resp.status_code == 200
+    html_sources = [resp.get_data(as_text=True)]
 
-    # Verify count functions and static alias
-    resp_static_demo = client.get("/static/demo-dataset.js")
-    assert resp_static_demo.status_code == 200
-    assert "DEMO_DATASET" in resp_static_demo.get_data(as_text=True)
-    assert "getDemoCounts" in js_text
+    for path in [
+        os.path.join(ROOT_DIR, "frontend", "index.html"),
+        os.path.join(ROOT_DIR, "templates", "index.html")
+    ]:
+        if os.path.exists(path):
+            with open(path, "r", encoding="utf-8") as f:
+                html_sources.append(f.read())
 
-    # Verify frontend HTML includes demo selector bar
-    resp_html = client.get("/")
-    assert resp_html.status_code == 200
-    html = resp_html.get_data(as_text=True)
-    assert 'id="demo-claim-select"' in html
-    assert 'id="run-demo-btn"' in html
-    assert 'id="load-demo-claim-btn"' in html
-    assert 'demo-dataset.js' in html
+    for html in html_sources:
+        assert 'id="demo-claim-select"' not in html
+        assert 'id="run-demo-btn"' not in html
+        assert 'id="load-demo-claim-btn"' not in html
+        assert 'class="demo-bar"' not in html
+        assert 'Predefined Demo Dataset' not in html
+        assert 'Run All 30 Demo Tests' not in html
+        assert 'Verify Selected' not in html
+
+        # Analyze & Verify button MUST exist
+        assert 'id="analyze-btn"' in html
+        # demo-dataset script MUST be included for matcher
+        assert 'demo-dataset.js' in html
+
+
+def test_req10_no_artificial_inference_metadata():
+    """10. Verify no artificial inference metadata appears for matched claims (confidence is null, no fake citations)."""
+    script_path = os.path.join(ROOT_DIR, "frontend", "js", "script.js")
+    with open(script_path, "r", encoding="utf-8") as f:
+        script_content = f.read()
+
+    assert "confidence: null" in script_content
+    assert 'evidence: ""' in script_content
+    assert 'source: ""' in script_content
+    assert 'source_url: ""' in script_content
+    assert 'correction: ""' in script_content
+    assert 'Predefined Demo' not in script_content
