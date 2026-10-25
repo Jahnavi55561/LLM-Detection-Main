@@ -4,7 +4,7 @@ A lightweight, evidence-grounded AI framework for detecting hallucinations in AI
 
 The project uses a decoupled architecture that separates the static web frontend, Flask API gateway, NLI verification service, and LLM correction service. It is designed for resource-constrained cloud infrastructure and supports independent deployment of the frontend, backend, and inference services.
 
-> **Deployment status:** The Flask backend is deployed on Render at `https://llm-detection-api.onrender.com`. The frontend is being configured for a separate Render Static Site. EC2 hosts the inference services.
+> **Deployment status:** The Flask backend is deployed on Render at https://llm-detection-main-a7d0.onrender.com. The frontend is being configured for a separate Render Static Site. EC2 hosts the inference services.
 
 ---
 
